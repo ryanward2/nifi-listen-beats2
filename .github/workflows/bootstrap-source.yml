@@ -22,7 +22,12 @@ jobs:
         run: |
           set -euo pipefail
           cat .bootstrap-payload/part-* > /tmp/listenbeats2.b64
-          base64 --decode /tmp/listenbeats2.b64 > /tmp/listenbeats2.tar.gz
+          python3 - <<'PY'
+          import base64, pathlib
+          encoded = pathlib.Path('/tmp/listenbeats2.b64').read_text()
+          raw = base64.b64decode(''.join(encoded.split()))
+          pathlib.Path('/tmp/listenbeats2.tar.gz').write_bytes(raw)
+          PY
           rm -rf /tmp/listenbeats2-restored
           mkdir -p /tmp/listenbeats2-restored
           tar -xzf /tmp/listenbeats2.tar.gz -C /tmp/listenbeats2-restored
