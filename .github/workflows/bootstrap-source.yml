@@ -1,4 +1,4 @@
-name: Restore published source tree
+name: Publish ListenBeats2 source tree
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  restore:
+  publish:
     if: ${{ github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     steps:
@@ -17,37 +17,40 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Inspect reconstructed payload
+      - name: Reconstruct staged source
         shell: bash
         run: |
           set -euo pipefail
           cat .bootstrap-payload/part-* > /tmp/listenbeats2.b64
-          python3 - <<'PY'
-          import base64, gzip, io, pathlib, shutil, tarfile, zipfile
-          encoded = pathlib.Path('/tmp/listenbeats2.b64').read_text()
-          raw = base64.b64decode(''.join(encoded.split()))
-          out = pathlib.Path('/tmp/listenbeats2-restored')
-          shutil.rmtree(out, ignore_errors=True)
-          out.mkdir(parents=True)
-          candidates=[raw]
-          try: candidates.append(gzip.decompress(raw))
-          except Exception: pass
-          for data in candidates:
-              try:
-                  with tarfile.open(fileobj=io.BytesIO(data), mode='r:*') as tf:
-                      tf.extractall(out)
-                      print('EXTRACTED_AS_TAR')
-                      break
-              except Exception: pass
-              try:
-                  with zipfile.ZipFile(io.BytesIO(data)) as zf:
-                      zf.extractall(out)
-                      print('EXTRACTED_AS_ZIP')
-                      break
-              except Exception: pass
-          PY
-          echo '--- extracted tree ---'
-          find /tmp/listenbeats2-restored -maxdepth 4 -print | sort | head -300
-          echo '--- file types ---'
-          find /tmp/listenbeats2-restored -maxdepth 3 -type f -print0 | xargs -0 -r file | head -100
-          exit 1
+          base64 --decode /tmp/listenbeats2.b64 > /tmp/listenbeats2.tar.gz
+          rm -rf /tmp/listenbeats2-restored
+          mkdir -p /tmp/listenbeats2-restored
+          tar -xzf /tmp/listenbeats2.tar.gz -C /tmp/listenbeats2-restored
+          echo "Restored files: $(find /tmp/listenbeats2-restored -type f | wc -l)"
+          test -f /tmp/listenbeats2-restored/README.md
+          test -f /tmp/listenbeats2-restored/nifi-listen-beats2-api/pom.xml
+          test -f /tmp/listenbeats2-restored/nifi-listen-beats2-services/pom.xml
+          test -f /tmp/listenbeats2-restored/nifi-listen-beats2-processors/pom.xml
+          test -f /tmp/listenbeats2-restored/nifi-listen-beats2-nar/pom.xml
+          test "$(find /tmp/listenbeats2-restored -name '*.java' -type f | wc -l)" -gt 50
+
+      - name: Replace staging tree with source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -a --delete --exclude='.git/' /tmp/listenbeats2-restored/ ./
+          test -f README.md
+          test -d nifi-listen-beats2-services/src/main/java
+          test -d nifi-listen-beats2-processors/src/main/java
+          echo "Published Java files: $(find . -name '*.java' -type f | wc -l)"
+
+      - name: Commit source to main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git status --short
+          git commit -m "Publish ListenBeats2 1.0.0 source for Apache NiFi 2.11.0"
+          git push origin HEAD:main
