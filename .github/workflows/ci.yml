@@ -1,0 +1,60 @@
+# Copyright 2026 DDS
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: CI
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Set up Maven 3.9.16
+        shell: bash
+        run: |
+          MAVEN_VERSION=3.9.16
+          MAVEN_SHA512=831a8591fe20c8243b1dbe7d71e3244f31d1665b0804b2e825e38cbbe5ce0cafb8338851f90780735568773e0a6cd07bbec107cda0b896b008b861075358b6f6
+          MAVEN_ARCHIVE=apache-maven-${MAVEN_VERSION}-bin.tar.gz
+          curl --fail --location --retry 3 --output "${RUNNER_TEMP}/${MAVEN_ARCHIVE}" \
+            "https://dlcdn.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries/${MAVEN_ARCHIVE}"
+          echo "${MAVEN_SHA512}  ${RUNNER_TEMP}/${MAVEN_ARCHIVE}" | sha512sum --check --strict
+          tar -xzf "${RUNNER_TEMP}/${MAVEN_ARCHIVE}" -C "${RUNNER_TEMP}"
+          echo "${RUNNER_TEMP}/apache-maven-${MAVEN_VERSION}/bin" >> "${GITHUB_PATH}"
+      - name: Build and test
+        run: mvn -B -T1C clean verify
+      - name: Capture NAR checksum
+        shell: bash
+        run: sha256sum nifi-listen-beats2-nar/target/*.nar > nifi-listen-beats2-nar/target/SHA256SUMS
+      - name: Upload NAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: nifi-listen-beats2-nar
+          path: |
+            nifi-listen-beats2-nar/target/*.nar
+            nifi-listen-beats2-nar/target/SHA256SUMS
+          if-no-files-found: error
