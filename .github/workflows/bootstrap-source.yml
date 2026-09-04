@@ -22,15 +22,16 @@ jobs:
         run: |
           set -euo pipefail
           cat .bootstrap-payload/part-* > /tmp/listenbeats2.b64
-          python3 - <<'PY'
-          import base64, pathlib
-          encoded = pathlib.Path('/tmp/listenbeats2.b64').read_text()
-          raw = base64.b64decode(''.join(encoded.split()))
-          pathlib.Path('/tmp/listenbeats2.tar.gz').write_bytes(raw)
-          PY
           rm -rf /tmp/listenbeats2-restored
           mkdir -p /tmp/listenbeats2-restored
-          tar -xzf /tmp/listenbeats2.tar.gz -C /tmp/listenbeats2-restored
+          python3 - <<'PY'
+          import base64, io, pathlib, tarfile
+          encoded = pathlib.Path('/tmp/listenbeats2.b64').read_text()
+          raw = base64.b64decode(''.join(encoded.split()))
+          out = pathlib.Path('/tmp/listenbeats2-restored')
+          with tarfile.open(fileobj=io.BytesIO(raw), mode='r:*') as tf:
+              tf.extractall(out)
+          PY
           echo "Restored files: $(find /tmp/listenbeats2-restored -type f | wc -l)"
           test -f /tmp/listenbeats2-restored/README.md
           test -f /tmp/listenbeats2-restored/nifi-listen-beats2-api/pom.xml
