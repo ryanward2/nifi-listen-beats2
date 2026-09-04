@@ -44,7 +44,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rsync -a --delete --exclude='.git/' /tmp/listenbeats2-restored/ ./
+          # Keep the currently executing bootstrap workflow unchanged. The final
+          # CI/release workflows are installed separately after this commit.
+          rsync -a --delete --exclude='.git/' --exclude='.github/workflows/' /tmp/listenbeats2-restored/ ./
           test -f README.md
           test -d nifi-listen-beats2-services/src/main/java
           test -d nifi-listen-beats2-processors/src/main/java
