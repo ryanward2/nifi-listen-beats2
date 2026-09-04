@@ -17,86 +17,37 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Reconstruct source tree
+      - name: Inspect reconstructed payload
         shell: bash
         run: |
           set -euo pipefail
-          test -d .bootstrap-payload
           cat .bootstrap-payload/part-* > /tmp/listenbeats2.b64
           python3 - <<'PY'
-          import base64, gzip, io, os, pathlib, shutil, tarfile, zipfile
-
+          import base64, gzip, io, pathlib, shutil, tarfile, zipfile
           encoded = pathlib.Path('/tmp/listenbeats2.b64').read_text()
           raw = base64.b64decode(''.join(encoded.split()))
           out = pathlib.Path('/tmp/listenbeats2-restored')
           shutil.rmtree(out, ignore_errors=True)
           out.mkdir(parents=True)
-
-          def safe_join(root: pathlib.Path, name: str) -> pathlib.Path:
-              p = (root / name).resolve()
-              if root.resolve() not in p.parents and p != root.resolve():
-                  raise RuntimeError(f'unsafe archive path: {name}')
-              return p
-
-          extracted = False
-          candidates = [raw]
-          try:
-              candidates.append(gzip.decompress(raw))
-          except Exception:
-              pass
-
+          candidates=[raw]
+          try: candidates.append(gzip.decompress(raw))
+          except Exception: pass
           for data in candidates:
               try:
                   with tarfile.open(fileobj=io.BytesIO(data), mode='r:*') as tf:
-                      for member in tf.getmembers():
-                          safe_join(out, member.name)
                       tf.extractall(out)
-                      extracted = True
+                      print('EXTRACTED_AS_TAR')
                       break
-              except Exception:
-                  pass
+              except Exception: pass
               try:
                   with zipfile.ZipFile(io.BytesIO(data)) as zf:
-                      for name in zf.namelist():
-                          safe_join(out, name)
                       zf.extractall(out)
-                      extracted = True
+                      print('EXTRACTED_AS_ZIP')
                       break
-              except Exception:
-                  pass
-
-          if not extracted:
-              raise RuntimeError('bootstrap payload is not a supported tar/zip archive')
-
-          roots = [out] + [p for p in out.rglob('*') if p.is_dir()]
-          source = None
-          for p in roots:
-              if (p / 'pom.xml').is_file() and (p / 'nifi-listen-beats2-services').is_dir() and (p / 'nifi-listen-beats2-processors').is_dir():
-                  source = p
-                  break
-          if source is None:
-              raise RuntimeError('could not locate ListenBeats2 source root in restored payload')
-
-          print(f'Restored source root: {source}')
-          pathlib.Path('/tmp/source-root').write_text(str(source))
+              except Exception: pass
           PY
-
-          SOURCE_ROOT="$(cat /tmp/source-root)"
-          rsync -a --delete --exclude='.git/' "${SOURCE_ROOT}/" ./
-
-          test -f pom.xml
-          test -f README.md
-          test -d nifi-listen-beats2-services/src/main/java
-          test -d nifi-listen-beats2-processors/src/main/java
-          test -f .github/workflows/ci.yml
-
-      - name: Publish source to main
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git status --short
-          git commit -m "Publish ListenBeats2 1.0.0 source for Apache NiFi 2.11.0"
-          git push origin HEAD:main
+          echo '--- extracted tree ---'
+          find /tmp/listenbeats2-restored -maxdepth 4 -print | sort | head -300
+          echo '--- file types ---'
+          find /tmp/listenbeats2-restored -maxdepth 3 -type f -print0 | xargs -0 -r file | head -100
+          exit 1
