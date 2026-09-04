@@ -73,4 +73,27 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.rat</groupId>
+                <artifactId>apache-rat-plugin</artifactId>
+                <configuration>
+                    <excludes combine.children="append">
+                        <exclude>LICENSE</exclude>
+                        <exclude>NOTICE</exclude>
+                        <exclude>README.md</exclude>
+                        <exclude>CHANGELOG.md</exclude>
+                        <exclude>CONTRIBUTING.md</exclude>
+                        <exclude>SECURITY.md</exclude>
+                        <exclude>build.sh</exclude>
+                        <exclude>docs/**</exclude>
+                        <exclude>tools/*.md</exclude>
+                        <exclude>.github/**</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>
