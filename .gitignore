@@ -1,0 +1,24 @@
+# Maven
+**/target/
+
+# IDEs
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Local diagnostics
+*.hprof
+hs_err_pid*
+replay_pid*
+
+# Local javac diagnostic argument files
+javac.*.args
