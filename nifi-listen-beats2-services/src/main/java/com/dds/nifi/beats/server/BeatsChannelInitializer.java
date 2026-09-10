@@ -165,8 +165,8 @@ public final class BeatsChannelInitializer extends ChannelInitializer<SocketChan
                     new ProcessingOffloadBridge(
                             processingExecutor, state, metrics, pressure, processingQueueTracker));
             channel.pipeline().addLast(processingExecutor, "beats-expand",
-                    new CompressedFrameExpander(config.protocolLimits(), metrics, state)hannel.pipeline().addLast(processingExecutor, "beats-expand",
-       handler", new BeatsProtocolHandler(
+                    new CompressedFrameExpander(config.protocolLimits(), metrics, state));
+            channel.pipeline().addLast(processingExecutor, "beats-handler", new BeatsProtocolHandler(
                     state,
                     batches,
                     memory,
@@ -189,6 +189,7 @@ public final class BeatsChannelInitializer extends ChannelInitializer<SocketChan
             }
         }
     }
+
     private void rejectBeforeAdmission(final SocketChannel channel, final ConnectionCloseReason reason) {
         metrics.rejectedConnections.increment();
         recordPreAdmissionClose(channel, reason);
@@ -204,5 +205,4 @@ public final class BeatsChannelInitializer extends ChannelInitializer<SocketChan
             metrics.connectionClosed(reason);
         }
     }
-
 }
