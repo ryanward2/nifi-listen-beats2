@@ -16,8 +16,9 @@ name: CI
 
 on:
   push:
-    branches: ["main", "master"]
+    branches: ["main", "master", "nifi_2.11"]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
